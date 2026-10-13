@@ -1,7 +1,6 @@
 import logging
 import random
 import time
-from typing import Optional
 
 from beta import generate_skewed_random
 
@@ -23,8 +22,7 @@ CONNECTION_MAX_RETRIES = 3
 CONNECTION_RETRY_DELAY = 3
 
 
-def wait_for_article(page, scrolls: int = MAX_SCROLLS_TRY, timeout_ms: int = 5000):
-    """Scroll until at least one article is visible or the scroll budget is exhausted."""
+def wait_for_article(page, scrolls=MAX_SCROLLS_TRY, timeout_ms=5000):
     for attempt in range(scrolls):
         try:
             page.wait_for_selector("article", timeout=timeout_ms)
@@ -42,8 +40,7 @@ def wait_for_article(page, scrolls: int = MAX_SCROLLS_TRY, timeout_ms: int = 500
     return None
 
 
-def safe_click(locator, timeout_ms: int = 5000, label: str = "element"):
-    """Best-effort click with a readable fallback for failures."""
+def safe_click(locator, timeout_ms=5000, label="element"):
     try:
         locator.click(timeout=timeout_ms)
         return True
@@ -52,19 +49,13 @@ def safe_click(locator, timeout_ms: int = 5000, label: str = "element"):
         return False
 
 
-def simulate_browsing(page, url: str = "https://www.instagram.com/", max_attempts: int = CONNECTION_MAX_RETRIES):
-    """
-    Simulate Instagram browsing: navigate, wait for articles, react to a few posts, and scroll.
-    """
-    last_error = None
-
+def simulate_browsing(page, url="https://www.instagram.com/", max_attempts=CONNECTION_MAX_RETRIES):
     for attempt in range(1, max_attempts + 1):
         try:
             logger.info("[Attempt %s/%s] Navigating to Instagram feed...", attempt, max_attempts)
             page.goto(url, timeout=20000)
             break
-        except Exception as exc:  # pragma: no cover - browser dependent
-            last_error = exc
+        except Exception as exc:
             logger.warning("Attempt %s failed: %s", attempt, exc)
             if attempt < max_attempts:
                 time.sleep(CONNECTION_RETRY_DELAY)
@@ -104,7 +95,6 @@ def simulate_browsing(page, url: str = "https://www.instagram.com/", max_attempt
                     else:
                         logger.info("[Cycle %s/%s] Already liked", cycle + 1, repeat_count)
                 else:
-                    logger.warning("[Cycle %s/%s] Like control not found for article #%s", cycle + 1, repeat_count, index + 1)
                     like_failed = True
             except Exception as exc:
                 like_failed = True
@@ -121,7 +111,6 @@ def simulate_browsing(page, url: str = "https://www.instagram.com/", max_attempt
                     else:
                         logger.info("[Cycle %s/%s] Already bookmarked", cycle + 1, repeat_count)
                 else:
-                    logger.warning("[Cycle %s/%s] Bookmark control not found for article #%s", cycle + 1, repeat_count, index + 1)
                     bookmark_failed = True
             except Exception as exc:
                 bookmark_failed = True
@@ -135,11 +124,10 @@ def simulate_browsing(page, url: str = "https://www.instagram.com/", max_attempt
                 logger.error("[Cycle %s/%s] Failed to retrieve article HTML: %s", cycle + 1, repeat_count, exc)
 
         scrolls = generate_skewed_random(base=5, skew=-0.75, max_value=SCROLL_RANGE, offset=2, as_int=True, max_streak=2)
-        for n in range(1, scrolls + 1):
-            scroll_amount = random.randint(*SCROLL_AMOUNT_PIXEL)
-            page.mouse.wheel(0, scroll_amount)
+        for i in range(1, scrolls + 1):
+            page.mouse.wheel(0, random.randint(*SCROLL_AMOUNT_PIXEL))
             wait_time = generate_skewed_random(base=5, skew=-0.75, max_value=WAIT_TIME_MAX, offset=2, as_int=False)
-            logger.info("[Cycle %s/%s] Scrolling down %s/%s ... waiting %2.0f seconds", cycle + 1, repeat_count, n, scrolls, wait_time)
+            logger.info("[Cycle %s/%s] Scrolling down %s/%s ... waiting %2.0f seconds", cycle + 1, repeat_count, i, scrolls, wait_time)
             time.sleep(wait_time)
 
     logger.info("Browsing simulation complete.")
@@ -147,4 +135,4 @@ def simulate_browsing(page, url: str = "https://www.instagram.com/", max_attempt
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-    print("This module is intended to be imported; run from the main downloader script instead.")
+    print("This module is intended to be imported; run via the main downloader script instead.")

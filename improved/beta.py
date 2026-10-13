@@ -1,15 +1,10 @@
-import math
-from typing import Optional
-
 import numpy as np
 
-# Internal state for streak control
 _last_val = None
 _streak_len = 0
 
 
-def reset_skew_state() -> None:
-    """Reset the state used to avoid value streaking."""
+def reset_skew_state():
     global _last_val, _streak_len
     _last_val = None
     _streak_len = 0
@@ -22,20 +17,9 @@ def generate_skewed_random(
     offset=1,
     as_int=False,
     max_streak=2,
-    rng: Optional[np.random.Generator] = None,
+    rng=None,
 ):
-    """
-    Generate a value from a skewed Beta distribution while reducing repetitive streaks.
-
-    Parameters:
-        base: controls the overall distribution shape
-        skew: negative skew makes lower values more likely; positive makes higher values more likely
-        max_value: upper bound for the randomized quantity
-        offset: value added after sampling
-        as_int: if True, sample from a discrete integer grid
-        max_streak: longest allowed repeated value before resampling
-        rng: optional numpy Generator for reproducible testing
-    """
+    """Generate a skewed random delay that avoids excessive repetition."""
     global _last_val, _streak_len
 
     if max_value <= 0:
