@@ -1,26 +1,16 @@
 import logging
 import random
 import time
+from typing import Optional
 
 from beta import generate_skewed_random
 
-# --- Log Formatting Constants ---
-GREY_COLOR = "\033[38;5;245m"
-RESET_COLOR = "\033[0m"
-
-# --- Module-specific logger (isolated from parent scripts) ---
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
 if not logger.handlers:
     handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        f"{GREY_COLOR}%(asctime)s [%(levelname)s] %(message)s{RESET_COLOR}",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-
 logger.propagate = False
 
 REPEAT_RANGE = 3
@@ -33,7 +23,22 @@ CONNECTION_MAX_RETRIES = 3
 CONNECTION_RETRY_DELAY = 3
 
 
-def wait_for_article(page, scrolls=MAX_SCROLLS_TRY, timeout_ms=5000):
+def _human_move(page, start_x: float, start_y: float, end_x: float, end_y: float, steps: int = 10, delay: float = 0.02):
+    """Move the mouse in small steps from start to end to simulate a human movement."""
+    try:
+        dx = (end_x - start_x) / steps
+        dy = (end_y - start_y) / steps
+        for i in range(1, steps + 1):
+            nx = start_x + dx * i
+            ny = start_y + dy * i
+            page.mouse.move(nx, ny)
+            time.sleep(delay * (0.5 + random.random()))
+        return True
+    except Exception:
+        return False
+
+
+def wait_for_article(page, scrolls: int = MAX_SCROLLS_TRY, timeout_ms: int = 5000):
     for attempt in range(scrolls):
         try:
             page.wait_for_selector("article", timeout=timeout_ms)
@@ -51,22 +56,36 @@ def wait_for_article(page, scrolls=MAX_SCROLLS_TRY, timeout_ms=5000):
     return None
 
 
-def safe_click(locator, timeout_ms=5000, label="element"):
+def safe_click(page, locator, timeout_ms: int = 5000, label: str = "element"):
+    """Perform a best-effort human-like click on the element located by `locator` using `page` for mouse movements."""
     try:
-        locator.click(timeout=timeout_ms)
-        return True
+        # Try to compute a clickable point
+        box = locator.first.bounding_box()
+        if box:
+            cx = box["x"] + box["width"] / 2
+            cy = box["y"] + box["height"] / 2
+            # current mouse position isn't easily readable; start from center of viewport
+            _human_move(page, 960, 540, cx, cy, steps=8, delay=0.01)
+            locator.first.click(timeout=timeout_ms)
+            return True
+        else:
+            locator.first.click(timeout=timeout_ms)
+            return True
     except Exception as exc:
         logger.warning("%s click failed: %s", label, exc)
         return False
 
 
-def simulate_browsing(page, url="https://www.instagram.com/", max_attempts=CONNECTION_MAX_RETRIES):
+def simulate_browsing(page, url: str = "https://www.instagram.com/", max_attempts: int = CONNECTION_MAX_RETRIES):
+    last_error = None
+
     for attempt in range(1, max_attempts + 1):
         try:
             logger.info("[Attempt %s/%s] Navigating to Instagram feed...", attempt, max_attempts)
             page.goto(url, timeout=20000)
             break
-        except Exception as exc:
+        except Exception as exc:  # pragma: no cover - browser dependent
+            last_error = exc
             logger.warning("Attempt %s failed: %s", attempt, exc)
             if attempt < max_attempts:
                 time.sleep(CONNECTION_RETRY_DELAY)
@@ -101,7 +120,7 @@ def simulate_browsing(page, url="https://www.instagram.com/", max_attempts=CONNE
                 if like_button.count():
                     label = like_button.first.get_attribute("aria-label")
                     if label == "Like":
-                        safe_click(like_button.first, label="like")
+                        safe_click(page, like_button, label="like")
                         logger.info("[Cycle %s/%s] Article #%s liked", cycle + 1, repeat_count, index + 1)
                     else:
                         logger.info("[Cycle %s/%s] Already liked", cycle + 1, repeat_count)
@@ -117,7 +136,7 @@ def simulate_browsing(page, url="https://www.instagram.com/", max_attempts=CONNE
                 if bookmark_button.count():
                     label = bookmark_button.first.get_attribute("aria-label")
                     if label == "Save":
-                        safe_click(bookmark_button.first, label="bookmark")
+                        safe_click(page, bookmark_button, label="bookmark")
                         logger.info("[Cycle %s/%s] Article #%s bookmarked", cycle + 1, repeat_count, index + 1)
                     else:
                         logger.info("[Cycle %s/%s] Already bookmarked", cycle + 1, repeat_count)
@@ -135,15 +154,15 @@ def simulate_browsing(page, url="https://www.instagram.com/", max_attempts=CONNE
                 logger.error("[Cycle %s/%s] Failed to retrieve article HTML: %s", cycle + 1, repeat_count, exc)
 
         scrolls = generate_skewed_random(base=5, skew=-0.75, max_value=SCROLL_RANGE, offset=2, as_int=True, max_streak=2)
-        for i in range(1, scrolls + 1):
+        for n in range(1, scrolls + 1):
             page.mouse.wheel(0, random.randint(*SCROLL_AMOUNT_PIXEL))
             wait_time = generate_skewed_random(base=5, skew=-0.75, max_value=WAIT_TIME_MAX, offset=2, as_int=False)
-            logger.info("[Cycle %s/%s] Scrolling down %s/%s ... waiting %2.0f seconds", cycle + 1, repeat_count, i, scrolls, wait_time)
+            logger.info("[Cycle %s/%s] Scrolling down %s/%s ... waiting %2.0f seconds", cycle + 1, repeat_count, n, scrolls, wait_time)
             time.sleep(wait_time)
 
     logger.info("Browsing simulation complete.")
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format=f"{GREY_COLOR}%(asctime)s [%(levelname)s] %(message)s{RESET_COLOR}")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     print("This module is intended to be imported; run via the main downloader script instead.")
