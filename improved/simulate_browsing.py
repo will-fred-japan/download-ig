@@ -1,16 +1,24 @@
 import logging
 import random
 import time
-from typing import Optional
 
 from beta import generate_skewed_random
 
+GREY_COLOR = "\033[38;5;245m"
+RESET_COLOR = "\033[0m"
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 if not logger.handlers:
     handler = logging.StreamHandler()
-    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter(
+        f"{GREY_COLOR}%(asctime)s [%(levelname)s] %(message)s{RESET_COLOR}",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+
 logger.propagate = False
 
 REPEAT_RANGE = 3
@@ -24,7 +32,6 @@ CONNECTION_RETRY_DELAY = 3
 
 
 def _human_move(page, start_x: float, start_y: float, end_x: float, end_y: float, steps: int = 10, delay: float = 0.02):
-    """Move the mouse in small steps from start to end to simulate a human movement."""
     try:
         dx = (end_x - start_x) / steps
         dy = (end_y - start_y) / steps
@@ -57,14 +64,11 @@ def wait_for_article(page, scrolls: int = MAX_SCROLLS_TRY, timeout_ms: int = 500
 
 
 def safe_click(page, locator, timeout_ms: int = 5000, label: str = "element"):
-    """Perform a best-effort human-like click on the element located by `locator` using `page` for mouse movements."""
     try:
-        # Try to compute a clickable point
         box = locator.first.bounding_box()
         if box:
             cx = box["x"] + box["width"] / 2
             cy = box["y"] + box["height"] / 2
-            # current mouse position isn't easily readable; start from center of viewport
             _human_move(page, 960, 540, cx, cy, steps=8, delay=0.01)
             locator.first.click(timeout=timeout_ms)
             return True
@@ -84,7 +88,7 @@ def simulate_browsing(page, url: str = "https://www.instagram.com/", max_attempt
             logger.info("[Attempt %s/%s] Navigating to Instagram feed...", attempt, max_attempts)
             page.goto(url, timeout=20000)
             break
-        except Exception as exc:  # pragma: no cover - browser dependent
+        except Exception as exc:
             last_error = exc
             logger.warning("Attempt %s failed: %s", attempt, exc)
             if attempt < max_attempts:
@@ -164,5 +168,5 @@ def simulate_browsing(page, url: str = "https://www.instagram.com/", max_attempt
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(level=logging.INFO, format=f"{GREY_COLOR}%(asctime)s [%(levelname)s] %(message)s{RESET_COLOR}")
     print("This module is intended to be imported; run via the main downloader script instead.")

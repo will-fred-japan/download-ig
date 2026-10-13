@@ -31,7 +31,6 @@ CHROMIUM_LAUNCH_ARGS = [
     "--no-sandbox",
     "--disable-dev-shm-usage",
     "--mute-audio",
-    # Keep flags conservative — avoid obvious automation flags when possible
     "--disable-plugins",
     "--disable-popup-blocking",
     "--disable-translate",
@@ -40,7 +39,6 @@ CHROMIUM_LAUNCH_ARGS = [
     "--disable-renderer-backgrounding",
     "--disable-features=TranslateUI",
     "--disable-accelerated-2d-canvas",
-    # Note: Some flags like --disable-infobars or --disable-devtools are noisy; avoid adding more
     "--device-scale-factor=1",
     "--disk-cache-size=200100100",
 ]
@@ -110,26 +108,12 @@ def run_single_download(script: Path, url: str) -> int:
 
 
 def _stealth_init_script():
-    # This script runs in the page before any other script and masks some automation flags.
     return r"""
-    // Pass the webdriver test, don't show the webdriver property
     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-
-    // Mock languages
     Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
-
-    // Mock plugins
     Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
-
-    // Mock hardwareConcurrency and deviceMemory
-    try {
-        Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 4});
-    } catch(e) {}
-    try {
-        Object.defineProperty(navigator, 'deviceMemory', {get: () => 8});
-    } catch(e) {}
-
-    // Mock permissions
+    try { Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 4}); } catch(e) {}
+    try { Object.defineProperty(navigator, 'deviceMemory', {get: () => 8}); } catch(e) {}
     const originalQuery = navigator.permissions.query;
     navigator.permissions.__query = originalQuery;
     navigator.permissions.query = (parameters) => (
@@ -173,13 +157,11 @@ def main(argv: List[str]) -> int:
                 args=CHROMIUM_LAUNCH_ARGS,
             )
 
-            # Add stealth init script to the context so it runs before any page script
             try:
                 browser.add_init_script(_stealth_init_script())
             except Exception:
                 logger.warning("Failed to add stealth init script; continuing without it.")
 
-            # Set Accept-Language header to a realistic value
             try:
                 browser.set_extra_http_headers({"Accept-Language": args.accept_language})
             except Exception:
