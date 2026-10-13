@@ -46,9 +46,12 @@ CHROMIUM_LAUNCH_ARGS = [
     "--disk-cache-size=200100100",
 ]
 
+GREY_COLOR = "\033[38;5;245m"
+RESET_COLOR = "\033[0m"
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
+    format=f"{GREY_COLOR}%(asctime)s [%(levelname)s] %(message)s{RESET_COLOR}",
     datefmt='%Y-%m-%d %H:%M:%S',
 )
 logger = logging.getLogger("download-ig-stories")

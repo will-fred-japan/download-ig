@@ -4,12 +4,23 @@ import time
 
 from beta import generate_skewed_random
 
+# --- Log Formatting Constants ---
+GREY_COLOR = "\033[38;5;245m"
+RESET_COLOR = "\033[0m"
+
+# --- Module-specific logger (isolated from parent scripts) ---
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 if not logger.handlers:
     handler = logging.StreamHandler()
-    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter(
+        f"{GREY_COLOR}%(asctime)s [%(levelname)s] %(message)s{RESET_COLOR}",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+
 logger.propagate = False
 
 REPEAT_RANGE = 3
@@ -134,5 +145,5 @@ def simulate_browsing(page, url="https://www.instagram.com/", max_attempts=CONNE
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(level=logging.INFO, format=f"{GREY_COLOR}%(asctime)s [%(levelname)s] %(message)s{RESET_COLOR}")
     print("This module is intended to be imported; run via the main downloader script instead.")
